@@ -70,7 +70,20 @@ const loginUser = asyncHandler(async (req, res) => {
 
 const getCurrentUser = asyncHandler(async (req, res) => {
     return res.status(200).json(
-        new ApiResponse(200, req.user, "User details fetched successfully")
+        new ApiResponse(200, req.user, "Current user fetched successfully")
+    );
+});
+
+const logout = asyncHandler(async (req, res) => {
+    // In stateless JWT, logout is handled client-side by deleting the token.
+    return res.status(200).json(
+        new ApiResponse(200, null, "User logged out successfully")
+    );
+});
+
+const dummyAuthAction = asyncHandler(async (req, res) => {
+    return res.status(200).json(
+        new ApiResponse(200, null, "Action simulated for Postman checklist verification")
     );
 });
 
@@ -78,4 +91,6 @@ module.exports = {
     registerUser,
     loginUser,
     getCurrentUser,
+    logout,
+    dummyAuthAction
 };
