@@ -40,6 +40,10 @@ app.get('/health', (req, res) => {
   });
 });
 
+const apiRoutes = require('./routes');
+const { errorHandler } = require('./middlewares/errorHandler');
+const { ApiError } = require('./utils/ApiError');
+
 // 7. Base API Root Versioning Endpoint
 app.get('/api/v1', (req, res) => {
   res.status(200).json({
@@ -47,5 +51,16 @@ app.get('/api/v1', (req, res) => {
     message: 'Welcome to the Economic Analytics REST API v1. Ready for analytical operations.'
   });
 });
+
+// 8. Mount Application Routes
+app.use('/api/v1', apiRoutes);
+
+// 9. Catch-all for undefined routes
+app.use('*', (req, res, next) => {
+  next(new ApiError(404, `Route ${req.originalUrl} not found`));
+});
+
+// 10. Global Error Handler
+app.use(errorHandler);
 
 module.exports = app;
