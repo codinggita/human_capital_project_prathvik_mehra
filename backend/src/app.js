@@ -11,6 +11,7 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
+
     // Connect to Database
     await connectDB();
 
