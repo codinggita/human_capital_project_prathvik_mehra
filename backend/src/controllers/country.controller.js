@@ -10,12 +10,13 @@ const createCountry = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Country code and name are required");
     }
 
-    const existingCountry = await Country.findOne({ countryCode });
+    // _id IS the countryCode in our schema
+    const existingCountry = await Country.findById(countryCode.toUpperCase());
     if (existingCountry) {
         throw new ApiError(409, "Country with this code already exists");
     }
 
-    const country = await Country.create({ countryCode, countryName });
+    const country = await Country.create({ _id: countryCode.toUpperCase(), name: countryName });
 
     return res.status(201).json(
         new ApiResponse(201, country, "Country created successfully")
@@ -31,7 +32,8 @@ const getAllCountries = asyncHandler(async (req, res) => {
 
 const getCountryByCode = asyncHandler(async (req, res) => {
     const { countryCode } = req.params;
-    const country = await Country.findOne({ countryCode });
+    // _id IS the countryCode - use findById for efficiency
+    const country = await Country.findById(countryCode.toUpperCase());
 
     if (!country) {
         throw new ApiError(404, "Country not found");

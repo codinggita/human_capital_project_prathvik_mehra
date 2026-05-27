@@ -57,4 +57,5 @@ dataPointSchema.index(
   { indicator: 1, year: -1, month: -1, value: -1, country: 1 }
 );
 
-module.exports = mongoose.model('DataPoint', dataPointSchema);
+const DataPoint = mongoose.model('DataPoint', dataPointSchema);
+module.exports = { DataPoint };
