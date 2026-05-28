@@ -10,12 +10,13 @@ const createIndicator = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Indicator code and label are required");
     }
 
-    const existingIndicator = await Indicator.findOne({ indicatorCode });
+    // _id IS the indicatorCode in our schema
+    const existingIndicator = await Indicator.findById(indicatorCode.toUpperCase());
     if (existingIndicator) {
         throw new ApiError(409, "Indicator with this code already exists");
     }
 
-    const indicator = await Indicator.create({ indicatorCode, indicatorLabel });
+    const indicator = await Indicator.create({ _id: indicatorCode.toUpperCase(), label: indicatorLabel });
 
     return res.status(201).json(
         new ApiResponse(201, indicator, "Indicator created successfully")
@@ -31,7 +32,8 @@ const getAllIndicators = asyncHandler(async (req, res) => {
 
 const getIndicatorByCode = asyncHandler(async (req, res) => {
     const { indicatorCode } = req.params;
-    const indicator = await Indicator.findOne({ indicatorCode });
+    // _id IS the indicatorCode - use findById for efficiency
+    const indicator = await Indicator.findById(indicatorCode.toUpperCase());
 
     if (!indicator) {
         throw new ApiError(404, "Indicator not found");
