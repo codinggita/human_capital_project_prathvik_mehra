@@ -7,9 +7,9 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const connectDB = require('../config/db');
-const Country = require('../models/country.model');
-const Indicator = require('../models/indicator.model');
-const DataPoint = require('../models/dataPoint.model');
+const { Country } = require('../models/country.model');
+const { Indicator } = require('../models/indicator.model');
+const { DataPoint } = require('../models/dataPoint.model');
 
 // ─── Portable Dataset Path Resolution ───────────────────────────────────────
 // Priority:

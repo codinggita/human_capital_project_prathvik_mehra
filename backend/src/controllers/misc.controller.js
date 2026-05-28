@@ -35,7 +35,7 @@ const searchCountries = asyncHandler(async (req, res) => {
     const { name } = req.query;
     const paginationOptions = getPaginationOptions(req);
     
-    const filter = name ? { countryName: new RegExp(name, "i") } : {};
+    const filter = name ? { name: new RegExp(name, "i") } : {};
     const countries = await Country.find(filter)
         .sort(paginationOptions.sort)
         .skip(paginationOptions.skip)
@@ -51,7 +51,7 @@ const searchIndicators = asyncHandler(async (req, res) => {
     const { text } = req.query;
     const paginationOptions = getPaginationOptions(req);
     
-    const filter = text ? { indicatorLabel: new RegExp(text, "i") } : {};
+    const filter = text ? { label: new RegExp(text, "i") } : {};
     const indicators = await Indicator.find(filter)
         .sort(paginationOptions.sort)
         .skip(paginationOptions.skip)
