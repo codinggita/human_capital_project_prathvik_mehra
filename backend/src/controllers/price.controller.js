@@ -70,8 +70,8 @@ const getPricesByValue = asyncHandler(async (req, res) => {
 const withCountry = (handler) => asyncHandler(async (req, res, next) => {
     const { countryCode } = req.params;
     if (countryCode) {
-        const country = await Country.findOne({ countryCode });
-        if (!country) throw new ApiError(404, "Country not found");
+        const country = await Country.findById(countryCode.toUpperCase());
+        if (!country) throw new ApiError(404, `Country '${countryCode}' not found`);
         req.query.country = country._id;
     }
     return handler(req, res, next);
