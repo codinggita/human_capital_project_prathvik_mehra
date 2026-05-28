@@ -11,7 +11,12 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
             throw new ApiError(401, "Unauthorized request");
         }
 
-        const decodedToken = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret");
+        // SECURITY: No fallback. If JWT_SECRET is not set, fail loudly at startup.
+        if (!process.env.JWT_SECRET) {
+            throw new ApiError(500, "Server misconfiguration: JWT_SECRET is not set");
+        }
+
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
 
         const user = await User.findById(decodedToken._id).select("-password");
 

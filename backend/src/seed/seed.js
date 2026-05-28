@@ -11,8 +11,14 @@ const Country = require('../models/country.model');
 const Indicator = require('../models/indicator.model');
 const DataPoint = require('../models/dataPoint.model');
 
-// Path to dataset in Downloads folder
-const datasetPath = 'C:\\Users\\PRATHVIK\\Downloads\\human_capital_project.json';
+// ─── Portable Dataset Path Resolution ───────────────────────────────────────
+// Priority:
+//   1. CLI argument:      node seed.js /path/to/dataset.json
+//   2. Environment var:   DATASET_PATH=/path/to/dataset.json npm run seed
+//   3. Default relative:  backend/data/human_capital_project.json
+const datasetPath = process.argv[2]
+    || process.env.DATASET_PATH
+    || path.join(__dirname, '../../data/human_capital_project.json');
 
 const seedDatabase = async () => {
   try {
