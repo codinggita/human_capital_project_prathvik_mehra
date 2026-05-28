@@ -1,14 +1,15 @@
 const { DataPoint } = require("../models/dataPoint.model");
 const { Country } = require("../models/country.model");
 const { Indicator } = require("../models/indicator.model");
-const mongoose = require("mongoose");
 
 class StatsService {
     /**
-     * Get global average for an indicator across all countries in a specific year
+     * Get global average for an indicator across all countries in a specific year.
+     * Since indicator._id IS the indicatorCode string, we use findById directly.
      */
     async getGlobalAverage(indicatorCode, year) {
-        const indicator = await Indicator.findOne({ indicatorCode });
+        // _id is the indicator code - use findById, not findOne({ indicatorCode })
+        const indicator = await Indicator.findById(indicatorCode.toUpperCase());
         if (!indicator) return null;
 
         const matchStage = { indicator: indicator._id };
@@ -32,10 +33,11 @@ class StatsService {
     }
 
     /**
-     * Get top/bottom performing countries for a specific indicator
+     * Get top/bottom performing countries for a specific indicator.
+     * country._id IS the countryCode string, so $lookup foreignField '_id' is correct.
      */
     async getTopCountries(indicatorCode, year, limit = 10, sortOrder = -1) {
-        const indicator = await Indicator.findOne({ indicatorCode });
+        const indicator = await Indicator.findById(indicatorCode.toUpperCase());
         if (!indicator) return null;
 
         const matchStage = { indicator: indicator._id };
@@ -57,8 +59,8 @@ class StatsService {
             {
                 $project: {
                     _id: 0,
-                    country: "$countryDetails.countryName",
-                    countryCode: "$countryDetails.countryCode",
+                    countryCode: "$countryDetails._id",   // _id IS the code
+                    countryName: "$countryDetails.name",  // name IS the country name
                     value: 1,
                     year: 1,
                     month: 1
@@ -70,12 +72,14 @@ class StatsService {
     }
 
     /**
-     * Compare two countries for a specific indicator across a range of years
+     * Compare two countries for a specific indicator across a range of years.
+     * Both country and indicator _id fields ARE the string codes.
      */
     async compareCountries(countryCode1, countryCode2, indicatorCode) {
-        const country1 = await Country.findOne({ countryCode: countryCode1 });
-        const country2 = await Country.findOne({ countryCode: countryCode2 });
-        const indicator = await Indicator.findOne({ indicatorCode });
+        // findById because _id IS the code
+        const country1 = await Country.findById(countryCode1.toUpperCase());
+        const country2 = await Country.findById(countryCode2.toUpperCase());
+        const indicator = await Indicator.findById(indicatorCode.toUpperCase());
 
         if (!country1 || !country2 || !indicator) return null;
 
@@ -100,7 +104,8 @@ class StatsService {
                     _id: "$year",
                     data: {
                         $push: {
-                            country: "$countryDetails.countryCode",
+                            country: "$countryDetails._id",   // _id IS the code
+                            countryName: "$countryDetails.name",
                             value: "$value"
                         }
                     }
