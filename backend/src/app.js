@@ -4,6 +4,17 @@ const path = require('path');
 // Initialize environmental variables from .env
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
+// ── STARTUP VALIDATION ──────────────────────────────────────────────────────
+// Must run FIRST — before Express, DB, or any module that reads env vars.
+// This prevents the server from starting with a missing JWT_SECRET and
+// silently allowing token forgery or cryptic runtime errors on first request.
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET environment variable is not set.');
+  console.error('Set it in your .env file. See backend/.env.example for all required variables.');
+  process.exit(1);
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 const connectDB = require('./config/db');
 const app = require('./server');
 

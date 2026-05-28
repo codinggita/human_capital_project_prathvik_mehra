@@ -93,17 +93,17 @@ const getStatsByMonth = asyncHandler(async (req, res) => {
 
 const getHighestValue = asyncHandler(async (req, res) => {
     const result = await DataPoint.findOne().sort({ value: -1 })
-        .populate("country", "countryCode countryName")
-        .populate("indicator", "indicatorCode indicatorLabel")
-        .lean();
+        .populate("country", "_id name")
+        .populate("indicator", "_id label")
+        .lean({ virtuals: true });
     return res.status(200).json(new ApiResponse(200, result, "Highest price value record"));
 });
 
 const getLowestValue = asyncHandler(async (req, res) => {
     const result = await DataPoint.findOne({ value: { $gt: 0 } }).sort({ value: 1 })
-        .populate("country", "countryCode countryName")
-        .populate("indicator", "indicatorCode indicatorLabel")
-        .lean();
+        .populate("country", "_id name")
+        .populate("indicator", "_id label")
+        .lean({ virtuals: true });
     return res.status(200).json(new ApiResponse(200, result, "Lowest price value record"));
 });
 
