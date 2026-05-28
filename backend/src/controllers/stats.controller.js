@@ -39,8 +39,9 @@ const getCountryComparison = asyncHandler(async (req, res) => {
 // ==========================
 const getStatsByCountry = asyncHandler(async (req, res) => {
     const { countryCode } = req.params;
-    const country = await Country.findOne({ countryCode });
-    if (!country) throw new ApiError(404, "Country not found");
+    // _id IS the countryCode — use findById, not findOne({ countryCode }) (virtual)
+    const country = await Country.findById(countryCode.toUpperCase());
+    if (!country) throw new ApiError(404, `Country '${countryCode}' not found`);
 
     const result = await DataPoint.aggregate([
         { $match: { country: country._id } },
@@ -173,8 +174,9 @@ const getTopCountries = asyncHandler(async (req, res) => {
         { $unwind: "$country" },
         {
             $project: {
-                countryCode: "$country.countryCode",
-                countryName: "$country.countryName",
+                // _id IS the code, name IS the name — virtuals don't exist in aggregation
+                countryCode: "$country._id",
+                countryName: "$country.name",
                 avgValue: 1,
                 count: 1
             }
@@ -191,7 +193,8 @@ const getTopIndicators = asyncHandler(async (req, res) => {
         { $limit: limit },
         { $lookup: { from: "indicators", localField: "_id", foreignField: "_id", as: "indicator" } },
         { $unwind: "$indicator" },
-        { $project: { indicatorCode: "$indicator.indicatorCode", indicatorLabel: "$indicator.indicatorLabel", count: 1, avgValue: 1 } }
+        // _id IS the code, label IS the label — virtuals don't exist in raw $lookup results
+        { $project: { indicatorCode: "$indicator._id", indicatorLabel: "$indicator.label", count: 1, avgValue: 1 } }
     ]);
     return res.status(200).json(new ApiResponse(200, result, "Top indicators by record count"));
 });
@@ -224,9 +227,11 @@ const getTrending = asyncHandler(async (req, res) => {
     const result = await DataPoint.find()
         .sort({ value: -1, year: -1 })
         .limit(limit)
-        .populate("country", "countryCode countryName")
-        .populate("indicator", "indicatorCode indicatorLabel")
-        .lean();
+        // Select real schema fields (_id = code, name/label = display names)
+        // virtuals (countryCode, countryName etc.) are added automatically via toJSON
+        .populate("country", "_id name")
+        .populate("indicator", "_id label")
+        .lean({ virtuals: true });
     return res.status(200).json(new ApiResponse(200, result, "Trending statistics"));
 });
 
