@@ -1,7 +1,5 @@
-const dotenv = require('dotenv');
-const path = require('path');
-dotenv.config({ path: path.join(__dirname, '../.env') });
-
+// NOTE: dotenv is loaded once in app.js before this module is required.
+// Do NOT call dotenv.config() here again to avoid double-loading env vars.
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
