@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node src/app.js",
+    "seed": "node src/seed/seed.js",
     "dev": "nodemon",
     "lint": "eslint src/ --ext .js",
     "lint:fix": "eslint src/ --ext .js --fix",
