@@ -1,46 +1,31 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
+// Connect MongoDB using Mongoose with modern async patterns
 const connectDB = async () => {
   try {
-    const mongoUri = process.env.MONGO_URI;
-    if (!mongoUri) {
-      console.error('Database configuration error: MONGO_URI environment variable is not defined.');
-      if (process.env.NODE_ENV !== 'test') {
-        process.exit(1);
-      }
+    // Select local or production URI dynamically based on environment
+    const uri =
+      process.env.NODE_ENV === "production"
+        ? process.env.MONGODB_URI
+        : process.env.LOCAL_MONGODB_URI || process.env.MONGODB_URI;
+
+    if (!uri) {
+      throw new Error(
+        "MongoDB connection string is missing in environment variables",
+      );
     }
 
-    const options = {
-      autoIndex: true, // Auto-build indexes in development; might disable in production for large datasets, but set true for initial compilation
-    };
+    const connection = await mongoose.connect(uri);
 
-    const conn = await mongoose.connect(mongoUri, options);
-    
-    if (process.env.NODE_ENV !== 'test') {
-      console.log(`MongoDB Connected successfully: ${conn.connection.host}`);
-    }
-    return conn;
+    // Log connected database host securely without leaking credentials
+    console.log(
+      `[🗄️ Database] MongoDB Connected Successfully: ${connection.connection.host}`,
+    );
   } catch (error) {
-    console.error(`MongoDB Connection Failed: ${error.message}`);
-    if (process.env.NODE_ENV !== 'test') {
-      process.exit(1);
-    }
-    throw error;
+    // Handle database connection failure gracefully to prevent server crashes
+    console.error(`[❌ Database Error] Connection Failed: ${error.message}`);
+    process.exit(1);
   }
 };
-
-// Graceful closure hook on application exit
-const handleGracefulShutdown = async (signal) => {
-  if (mongoose.connection.readyState !== 0) {
-    await mongoose.connection.close();
-    if (process.env.NODE_ENV !== 'test') {
-      console.log(`MongoDB connection terminated gracefully via ${signal}`);
-    }
-  }
-  process.exit(0);
-};
-
-process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
-process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
 
 module.exports = connectDB;
