@@ -1,31 +1,42 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const countrySchema = new mongoose.Schema({
-  _id: {
-    type: String, // ISO alpha-3 code (e.g., "ABW") - this IS the countryCode
-    required: true,
-    uppercase: true,
-    trim: true,
-    minlength: 3,
-    maxlength: 3
+const countrySchema = new mongoose.Schema(
+  {
+    countryCode: {
+      type: String,
+      required: [true, "Country code is required"],
+      unique: true,
+      trim: true,
+      uppercase: true,
+      maxLength: 3,
+    },
+    countryName: {
+      type: String,
+      required: [true, "Country name is required"],
+      trim: true,
+    },
+    region: {
+      type: String,
+      trim: true,
+    },
+    currency: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      maxLength: 3,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
-  name: {
-    type: String, // this IS the countryName
-    required: true,
-    trim: true
-  }
-}, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-});
+  {
+    timestamps: true,
+  },
+);
 
-// Virtual aliases for API-friendly field names
-countrySchema.virtual('countryCode').get(function () { return this._id; });
-countrySchema.virtual('countryName').get(function () { return this.name; });
+// Index for faster country lookups by name or region categorization
+countrySchema.index({ countryName: 1 });
+countrySchema.index({ region: 1 });
 
-// Text index to allow text search by country name
-countrySchema.index({ name: 'text' });
-
-const Country = mongoose.model('Country', countrySchema);
-module.exports = { Country };
+module.exports = mongoose.model("Country", countrySchema);
