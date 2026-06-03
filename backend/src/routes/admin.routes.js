@@ -1,31 +1,43 @@
 const express = require("express");
-const { verifyJWT, verifyAdmin } = require("../middlewares/auth.middleware");
-const { getPrices, createPrice, updatePrice, deletePrice } = require("../controllers/price.controller");
-const { ApiResponse } = require("../utils/apiResponse");
-const { asyncHandler } = require("../middlewares/asyncHandler");
-const { getPaginationOptions } = require("../utils/pagination");
-const statsService = require("../services/stats.service");
-
 const router = express.Router();
+const rateLimit = require("express-rate-limit");
 
-// All admin routes require JWT and admin role
-router.use(verifyJWT, verifyAdmin);
+const adminController = require("../controllers/admin.controller");
+const { verifyJWT } = require("../middlewares/auth.middleware");
+const { authorizeRoles } = require("../middlewares/role.middleware");
 
-// Admin Price CRUD
-router.get("/prices", getPrices);
-router.post("/prices", createPrice);
-router.patch("/prices/:priceId", updatePrice);
-router.delete("/prices/:priceId", deletePrice);
+// Strict admin rate limiting
+const adminLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 50 });
 
-// Admin Dashboard
-router.get("/dashboard", asyncHandler(async (req, res) => {
-    res.status(200).json(new ApiResponse(200, { message: "Admin dashboard accessible" }, "Admin dashboard"));
-}));
+// Protect and strictly authorize all admin routes using smart verification
+router.use(verifyJWT);
 
-// Admin Statistics
-router.get("/stats", asyncHandler(async (req, res) => {
-    const data = await statsService.getGlobalAverage(req.query.indicator || "SP.POP.TOTL", req.query.year);
-    res.status(200).json(new ApiResponse(200, data, "Admin statistics fetched"));
-}));
+router.use(authorizeRoles("admin"));
+router.use(adminLimiter);
+
+// Dashboards and Analytics
+router.get("/dashboard", adminController.getAdminDashboard);
+router.get("/analytics", adminController.getAdminAnalytics);
+router.get("/stats", adminController.getAdminStats);
+router.get("/users", adminController.getAllUsers);
+
+// Admin-specific Prices Management
+router
+  .route("/prices")
+  .get(adminController.getAdminPrices)
+  .post(adminController.createAdminPrice)
+  .options(adminController.adminPricesOptions);
+
+router
+  .route("/prices/:priceId")
+  .patch(adminController.updateAdminPrice)
+  .delete(adminController.deleteAdminPrice);
+
+// Admin User Management
+router
+  .route("/users/:id")
+  .get(adminController.getUserById)
+  .patch(adminController.updateUserRole)
+  .delete(adminController.deleteUser);
 
 module.exports = router;
