@@ -1,46 +1,82 @@
 const express = require("express");
-const c = require("../controllers/price.controller");
-
 const router = express.Router();
+const rateLimit = require("express-rate-limit");
 
-// Advanced Named Routes
-router.get("/random", c.getRandomPrices);
-router.get("/trending", c.getTrendingPrices);
-router.get("/recent", c.getRecentPrices);
-router.get("/latest", c.getLatestPrices);
-router.get("/high-value", c.getHighValuePrices);
-router.get("/low-value", c.getLowValuePrices);
+const priceController = require("../controllers/price.controller");
+const { protect, verifyJWT } = require("../middlewares/auth.middleware");
+const { authorizeRoles } = require("../middlewares/role.middleware");
 
-// Extremes Routes
-router.get("/year/:year/highest", c.getHighestByYear);
-router.get("/year/:year/lowest", c.getLowestByYear);
-router.get("/month/:month/highest", c.getHighestByMonth);
-router.get("/month/:month/lowest", c.getLowestByMonth);
+const { validateRequest } = require("../middlewares/validate.middleware");
 
-// Country Parameter Routes
-router.get("/country/:countryCode", c.getPricesByCountry);
-router.get("/country/:countryCode/year/:year", c.getPricesByCountryYear);
-router.get("/country/:countryCode/month/:month", c.getPricesByCountryMonth);
-router.get("/country/:countryCode/latest", c.getPricesByCountryLatest);
-router.get("/country/:countryCode/history", c.getPricesByCountryHistory);
+const apiLimiter = rateLimit({ windowMs: 1 * 60 * 1000, max: 100 });
+const spamLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
 
-// Core Parameter Routes
-router.get("/year/:year", c.getPricesByYear);
-router.get("/month/:month", c.getPricesByMonth);
-router.get("/indicator/:indicator", c.getPricesByIndicator);
-router.get("/value/:value", c.getPricesByValue);
-router.get("/frequency/:freq", c.getPricesByFrequency);
-router.get("/range/:startYear/:endYear", c.getPricesByRange);
+router.use(apiLimiter);
 
-// Basic CRUD Routes
-router.route("/")
-    .get(c.getPrices)
-    .post(c.createPrice);
+// ---------------------------------------------------------
+// Specialized Advance Routes (Must precede parameter routes)
+// ---------------------------------------------------------
+router.get("/latest", priceController.getLatestPrices);
+router.get("/trending", priceController.getTrendingPrices);
+router.get("/recent", priceController.getRecentPrices);
+router.get("/random", priceController.getRandomPrices);
+router.get("/high-value", priceController.getHighValuePrices);
+router.get("/low-value", priceController.getLowValuePrices);
+router.get("/highest", priceController.getHighestPrices);
+router.get("/lowest", priceController.getLowestPrices);
 
-router.route("/:priceId")
-    .get(c.getPriceById)
-    .put(c.updatePrice)
-    .patch(c.updatePrice)
-    .delete(c.deletePrice);
+// ---------------------------------------------------------
+// Route Parameter Endpoints
+// ---------------------------------------------------------
+router.get("/country/:countryCode", priceController.getPricesByCountry);
+router.get("/year/:year", priceController.getPricesByYear);
+router.get("/month/:month", priceController.getPricesByMonth);
+router.get("/indicator/:indicator", priceController.getPricesByIndicator);
+router.get("/value/:value", priceController.getPricesByValue);
+router.get("/frequency/:freq", priceController.getPricesByFrequency);
+router.get("/range/:startYear/:endYear", priceController.getPricesByYearRange);
+
+// Complex Combined Route Parameters
+router.get(
+  "/country/:countryCode/year/:year",
+  priceController.getCountryPricesByYear,
+);
+router.get(
+  "/country/:countryCode/month/:month",
+  priceController.getCountryPricesByMonth,
+);
+router.get(
+  "/country/:countryCode/latest",
+  priceController.getLatestCountryPrices,
+);
+router.get(
+  "/country/:countryCode/history",
+  priceController.getCountryPriceHistory,
+);
+
+router.get("/year/:year/highest", priceController.getHighestPricesInYear);
+router.get("/year/:year/lowest", priceController.getLowestPricesInYear);
+router.get("/month/:month/highest", priceController.getHighestPricesInMonth);
+router.get("/month/:month/lowest", priceController.getLowestPricesInMonth);
+
+// ---------------------------------------------------------
+// Standard CRUD Operations (Includes Query Params like page, sort, etc)
+// ---------------------------------------------------------
+router
+  .route("/")
+  .get(priceController.getPrices)
+  .post(protect, spamLimiter, priceController.createPrice)
+  .head(priceController.getPricesHeaders)
+  .options(priceController.getPricesOptions);
+
+router
+  .route("/:priceId")
+  .get(priceController.getPriceById)
+  .put(verifyJWT, priceController.replacePrice)
+  .patch(verifyJWT, priceController.updatePrice)
+  .delete(verifyJWT, spamLimiter, priceController.deletePrice)
+
+  .head(priceController.getPriceHeaders)
+  .options(priceController.getPriceOptions);
 
 module.exports = router;
