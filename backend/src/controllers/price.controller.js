@@ -1,177 +1,387 @@
-const { ApiError } = require("../utils/ApiError");
-const { ApiResponse } = require("../utils/apiResponse");
-const { asyncHandler } = require("../middlewares/asyncHandler");
+const asyncHandler = require("../utils/asyncHandler");
+const { successResponse } = require("../utils/responseFormatter");
 const priceService = require("../services/price.service");
-const { getPaginationOptions, getPaginatedPayload } = require("../utils/pagination");
-const { DataPoint } = require("../models/dataPoint.model");
-const { Country } = require("../models/country.model");
 
-// ==========================
-// Core Query & CRUD Logic
-// ==========================
-const getPrices = asyncHandler(async (req, res) => {
-    const filter = priceService.buildFilter(req.query);
-    const paginationOptions = getPaginationOptions(req);
-    const { data, totalDocs } = await priceService.getPrices(filter, paginationOptions);
-    const payload = getPaginatedPayload(data, paginationOptions.page, paginationOptions.limit, totalDocs);
-    return res.status(200).json(new ApiResponse(200, payload, "Prices retrieved successfully"));
-});
-
-const getPriceById = asyncHandler(async (req, res) => {
-    const { priceId } = req.params;
-    const price = await DataPoint.findById(priceId);
-    if (!price) throw new ApiError(404, "Price not found");
-    return res.status(200).json(new ApiResponse(200, price, "Price retrieved successfully"));
-});
-
-const createPrice = asyncHandler(async (req, res) => {
-    const price = await DataPoint.create(req.body);
-    return res.status(201).json(new ApiResponse(201, price, "Price created successfully"));
-});
-
-const updatePrice = asyncHandler(async (req, res) => {
-    const { priceId } = req.params;
-    const price = await DataPoint.findByIdAndUpdate(priceId, req.body, { new: true, runValidators: true });
-    if (!price) throw new ApiError(404, "Price not found");
-    return res.status(200).json(new ApiResponse(200, price, "Price updated successfully"));
-});
-
-const deletePrice = asyncHandler(async (req, res) => {
-    const { priceId } = req.params;
-    const price = await DataPoint.findByIdAndDelete(priceId);
-    if (!price) throw new ApiError(404, "Price not found");
-    return res.status(200).json(new ApiResponse(200, price, "Price deleted successfully"));
-});
-
-// ==========================
-// Exact Path Parameter Wrappers
-// ==========================
-const wrapQuery = (paramMap) => asyncHandler(async (req, res, next) => {
-    for (const [param, queryKey] of Object.entries(paramMap)) {
-        if (req.params[param]) req.query[queryKey] = req.params[param];
-    }
-    return getPrices(req, res, next);
-});
-
-// Using wrapQuery where no DB lookups are needed
-const getPricesByYear = wrapQuery({ year: 'year' });
-const getPricesByMonth = wrapQuery({ month: 'month' });
-const getPricesByIndicator = wrapQuery({ indicator: 'indicator' });
-const getPricesByFrequency = wrapQuery({ freq: 'frequency' });
-const getPricesByRange = wrapQuery({ startYear: 'startYear', endYear: 'endYear' });
-
-const getPricesByValue = asyncHandler(async (req, res) => {
-    req.query.minValue = req.params.value;
-    req.query.maxValue = req.params.value;
-    return getPrices(req, res);
-});
-
-// Country wrappers require DB lookup to map Code to ObjectId
-const withCountry = (handler) => asyncHandler(async (req, res, next) => {
-    const { countryCode } = req.params;
-    if (countryCode) {
-        const country = await Country.findById(countryCode.toUpperCase());
-        if (!country) throw new ApiError(404, `Country '${countryCode}' not found`);
-        req.query.country = country._id;
-    }
-    return handler(req, res, next);
-});
-
-const getPricesByCountry = withCountry(getPrices);
-const getPricesByCountryYear = withCountry(wrapQuery({ year: 'year' }));
-const getPricesByCountryMonth = withCountry(wrapQuery({ month: 'month' }));
-
-const getPricesByCountryLatest = withCountry(asyncHandler(async (req, res) => {
-    req.query.limit = 1;
-    req.query.sortBy = 'year';
-    req.query.sortOrder = 'desc';
-    return getPrices(req, res);
-}));
-
-const getPricesByCountryHistory = withCountry(asyncHandler(async (req, res) => {
-    req.query.sortBy = 'year';
-    req.query.sortOrder = 'asc';
-    return getPrices(req, res);
-}));
-
-// Highest/Lowest logic
-const getPricesExtremes = (sortByField, sortOrder, paramMap) => asyncHandler(async (req, res) => {
-    for (const [param, queryKey] of Object.entries(paramMap)) {
-        if (req.params[param]) req.query[queryKey] = req.params[param];
-    }
-    req.query.sortBy = sortByField;
-    req.query.sortOrder = sortOrder;
-    req.query.limit = req.query.limit || 10;
-    return getPrices(req, res);
-});
-
-const getHighestByYear = getPricesExtremes('value', 'desc', { year: 'year' });
-const getLowestByYear = getPricesExtremes('value', 'asc', { year: 'year' });
-const getHighestByMonth = getPricesExtremes('value', 'desc', { month: 'month' });
-const getLowestByMonth = getPricesExtremes('value', 'asc', { month: 'month' });
-
-// ==========================
-// Advanced Named Routes
-// ==========================
-const getRandomPrices = asyncHandler(async (req, res) => {
-    const limit = parseInt(req.query.limit, 10) || 5;
-    const data = await DataPoint.aggregate([{ $sample: { size: limit } }]);
-    return res.status(200).json(new ApiResponse(200, { data }, "Random prices retrieved"));
+// Delegate advanced specific price queries to service layer
+const getLatestPrices = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getLatestPrices(req.query);
+  return successResponse(
+    res,
+    200,
+    "Latest prices fetched successfully",
+    data,
+    pagination,
+  );
 });
 
 const getTrendingPrices = asyncHandler(async (req, res) => {
-    req.query.sortBy = 'value';
-    req.query.sortOrder = 'desc';
-    return getPrices(req, res);
+  const { data, pagination } = await priceService.getTrendingPrices(req.query);
+  return successResponse(
+    res,
+    200,
+    "Trending prices fetched successfully",
+    data,
+    pagination,
+  );
 });
 
 const getRecentPrices = asyncHandler(async (req, res) => {
-    req.query.sortBy = 'createdAt';
-    req.query.sortOrder = 'desc';
-    return getPrices(req, res);
+  const { data, pagination } = await priceService.getRecentPrices(req.query);
+  return successResponse(
+    res,
+    200,
+    "Recent prices fetched successfully",
+    data,
+    pagination,
+  );
 });
 
-const getLatestPrices = asyncHandler(async (req, res) => {
-    req.query.sortBy = 'year';
-    req.query.sortOrder = 'desc';
-    return getPrices(req, res);
+const getRandomPrices = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getRandomPrices(req.query);
+  return successResponse(
+    res,
+    200,
+    "Random prices fetched successfully",
+    data,
+    pagination,
+  );
 });
 
 const getHighValuePrices = asyncHandler(async (req, res) => {
-    req.query.minValue = 100; // Arbitrary high value threshold
-    return getPrices(req, res);
+  const { data, pagination } = await priceService.getHighValuePrices(req.query);
+  return successResponse(
+    res,
+    200,
+    "High value prices fetched successfully",
+    data,
+    pagination,
+  );
 });
 
 const getLowValuePrices = asyncHandler(async (req, res) => {
-    req.query.maxValue = 10; // Arbitrary low value threshold
-    return getPrices(req, res);
+  const { data, pagination } = await priceService.getLowValuePrices(req.query);
+  return successResponse(
+    res,
+    200,
+    "Low value prices fetched successfully",
+    data,
+    pagination,
+  );
 });
 
+// Delegate parameter-based queries to service layer
+const getPricesByCountry = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getPricesByCountry(
+    req.params.countryCode,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getPricesByYear = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getPricesByYear(
+    req.params.year,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getPricesByMonth = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getPricesByMonth(
+    req.params.month,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getPricesByIndicator = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getPricesByIndicator(
+    req.params.indicator,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getPricesByValue = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getPricesByValue(
+    req.params.value,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getPricesByFrequency = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getPricesByFrequency(
+    req.params.freq,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getPricesByYearRange = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getPricesByYearRange(
+    req.params.startYear,
+    req.params.endYear,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getCountryPricesByYear = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getCountryPricesByYear(
+    req.params.countryCode,
+    req.params.year,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getCountryPricesByMonth = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getCountryPricesByMonth(
+    req.params.countryCode,
+    req.params.month,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getLatestCountryPrices = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getLatestCountryPrices(
+    req.params.countryCode,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getCountryPriceHistory = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getCountryPriceHistory(
+    req.params.countryCode,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getHighestPricesInYear = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getHighestPricesInYear(
+    req.params.year,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getLowestPricesInYear = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getLowestPricesInYear(
+    req.params.year,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getHighestPricesInMonth = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getHighestPricesInMonth(
+    req.params.month,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getLowestPricesInMonth = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getLowestPricesInMonth(
+    req.params.month,
+    req.query,
+  );
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getHighestPrices = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getHighestPrices(req.query);
+  return successResponse(
+    res,
+    200,
+    "Highest prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getLowestPrices = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getLowestPrices(req.query);
+  return successResponse(
+    res,
+    200,
+    "Lowest prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+// Base RESTful CRUD Operations
+const getPrices = asyncHandler(async (req, res) => {
+  const { data, pagination } = await priceService.getAllPrices(req.query);
+  return successResponse(
+    res,
+    200,
+    "Prices fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const createPrice = asyncHandler(async (req, res) => {
+  const data = await priceService.createPrice(req.body);
+  return successResponse(res, 201, "Price created successfully", data);
+});
+
+const getPriceById = asyncHandler(async (req, res) => {
+  const data = await priceService.getSinglePrice(req.params.priceId);
+  return successResponse(res, 200, "Price fetched successfully", data);
+});
+
+const replacePrice = asyncHandler(async (req, res) => {
+  const data = await priceService.replacePrice(req.params.priceId, req.body);
+  return successResponse(res, 200, "Price replaced successfully", data);
+});
+
+const updatePrice = asyncHandler(async (req, res) => {
+  const data = await priceService.updatePrice(req.params.priceId, req.body);
+  return successResponse(res, 200, "Price updated successfully", data);
+});
+
+const deletePrice = asyncHandler(async (req, res) => {
+  await priceService.deletePrice(req.params.priceId);
+  return successResponse(res, 200, "Price deleted successfully");
+});
+
+// Informational Endpoints (HEAD, OPTIONS)
+const getPricesHeaders = (req, res) => res.status(200).send();
+const getPricesOptions = (req, res) =>
+  res.status(200).set("Allow", "GET, POST, HEAD, OPTIONS").send();
+const getPriceHeaders = (req, res) => res.status(200).send();
+const getPriceOptions = (req, res) =>
+  res.status(200).set("Allow", "GET, PUT, PATCH, DELETE, HEAD, OPTIONS").send();
+
 module.exports = {
-    getPrices,
-    getPriceById,
-    createPrice,
-    updatePrice,
-    deletePrice,
-    getPricesByYear,
-    getPricesByMonth,
-    getPricesByIndicator,
-    getPricesByValue,
-    getPricesByFrequency,
-    getPricesByRange,
-    getPricesByCountry,
-    getPricesByCountryYear,
-    getPricesByCountryMonth,
-    getPricesByCountryLatest,
-    getPricesByCountryHistory,
-    getHighestByYear,
-    getLowestByYear,
-    getHighestByMonth,
-    getLowestByMonth,
-    getRandomPrices,
-    getTrendingPrices,
-    getRecentPrices,
-    getLatestPrices,
-    getHighValuePrices,
-    getLowValuePrices
+  getLatestPrices,
+  getTrendingPrices,
+  getRecentPrices,
+  getRandomPrices,
+  getHighValuePrices,
+  getLowValuePrices,
+  getPricesByCountry,
+  getPricesByYear,
+  getPricesByMonth,
+  getPricesByIndicator,
+  getPricesByValue,
+  getPricesByFrequency,
+  getPricesByYearRange,
+  getCountryPricesByYear,
+  getCountryPricesByMonth,
+  getLatestCountryPrices,
+  getCountryPriceHistory,
+  getHighestPricesInYear,
+  getLowestPricesInYear,
+  getHighestPricesInMonth,
+  getLowestPricesInMonth,
+  getHighestPrices,
+  getLowestPrices,
+  getPrices,
+  createPrice,
+  getPriceById,
+  replacePrice,
+  updatePrice,
+  deletePrice,
+  getPricesHeaders,
+  getPricesOptions,
+  getPriceHeaders,
+  getPriceOptions,
 };

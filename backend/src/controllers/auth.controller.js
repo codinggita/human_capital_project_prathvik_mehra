@@ -1,99 +1,105 @@
-const { User } = require("../models/user.model");
-const { ApiError } = require("../utils/ApiError");
-const { ApiResponse } = require("../utils/apiResponse");
-const { asyncHandler } = require("../middlewares/asyncHandler");
-const jwt = require("jsonwebtoken");
+const asyncHandler = require("../utils/asyncHandler");
+const { successResponse } = require("../utils/responseFormatter");
+const authService = require("../services/auth.service");
 
-const generateToken = (userId) => {
-    if (!process.env.JWT_SECRET) {
-        throw new Error("FATAL: JWT_SECRET environment variable is not set");
-    }
-    return jwt.sign({ _id: userId }, process.env.JWT_SECRET, {
-        expiresIn: "1d",
-    });
-};
+// Call service layer for user registration
+const register = asyncHandler(async (req, res) => {
+  const { data, token } = await authService.registerUser(req.body);
 
-const registerUser = asyncHandler(async (req, res) => {
-    const { username, email, password } = req.body;
+  res.cookie("token", token, {
+    expires: new Date(Date.now() + 15 * 60 * 1000),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Lax",
+  });
 
-    if (!username || !email || !password) {
-        throw new ApiError(400, "All fields are required");
-    }
-
-    const existedUser = await User.findOne({
-        $or: [{ username }, { email }],
-    });
-
-    if (existedUser) {
-        throw new ApiError(409, "User with email or username already exists");
-    }
-
-    const user = await User.create({
-        username,
-        email,
-        password,
-    });
-
-    const createdUser = await User.findById(user._id).select("-password");
-
-    return res.status(201).json(
-        new ApiResponse(201, createdUser, "User registered successfully")
-    );
+  return successResponse(res, 201, "User registered successfully", {
+    user: data,
+    token,
+  });
 });
 
-const loginUser = asyncHandler(async (req, res) => {
-    const { email, username, password } = req.body;
+// Call service layer for user login
+const login = asyncHandler(async (req, res) => {
+  const { data, token } = await authService.loginUser(req.body);
 
-    if (!username && !email) {
-        throw new ApiError(400, "Username or email is required");
-    }
+  res.cookie("token", token, {
+    expires: new Date(Date.now() + 15 * 60 * 1000),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Lax",
+  });
 
-    const user = await User.findOne({
-        $or: [{ username }, { email }],
-    }).select("+password");
-
-    if (!user) {
-        throw new ApiError(404, "User does not exist");
-    }
-
-    const isPasswordValid = await user.isPasswordCorrect(password);
-
-    if (!isPasswordValid) {
-        throw new ApiError(401, "Invalid user credentials");
-    }
-
-    const token = generateToken(user._id);
-    
-    const loggedInUser = await User.findById(user._id).select("-password");
-
-    return res.status(200).json(
-        new ApiResponse(200, { user: loggedInUser, token }, "User logged in successfully")
-    );
+  return successResponse(res, 200, "User logged in successfully", {
+    user: data,
+    token,
+  });
 });
 
-const getCurrentUser = asyncHandler(async (req, res) => {
-    return res.status(200).json(
-        new ApiResponse(200, req.user, "Current user fetched successfully")
-    );
-});
+// Provide allowed OPTIONS for login endpoint
+const loginOptions = (req, res) =>
+  res.status(200).set("Allow", "POST, OPTIONS").send();
 
+// Call service layer to handle logout revocation
 const logout = asyncHandler(async (req, res) => {
-    // In stateless JWT, logout is handled client-side by deleting the token.
-    return res.status(200).json(
-        new ApiResponse(200, null, "User logged out successfully")
-    );
+  await authService.logoutUser(req.user.id);
+  return successResponse(res, 200, "User logged out successfully");
 });
 
-const dummyAuthAction = asyncHandler(async (req, res) => {
-    return res.status(200).json(
-        new ApiResponse(200, null, "Action simulated for Postman checklist verification")
-    );
+const forgotPassword = asyncHandler(async (req, res) => {
+  await authService.forgotPassword(req.body.email);
+  return successResponse(res, 200, "Password reset token sent to email");
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  await authService.resetPassword(req.body.token, req.body.newPassword);
+  return successResponse(res, 200, "Password reset successfully");
+});
+
+const refreshToken = asyncHandler(async (req, res) => {
+  const { token } = await authService.refreshToken(req.body.refreshToken);
+  return successResponse(res, 200, "Token refreshed successfully", { token });
+});
+
+const getMe = asyncHandler(async (req, res) => {
+  const data = await authService.getCurrentUser(req.user.id);
+  return successResponse(res, 200, "User profile fetched successfully", data);
+});
+
+// Provide HEAD response for profile checks
+const checkMeHeaders = (req, res) =>
+  res.status(200).set("Allow", "GET, HEAD").send();
+
+const sendOtp = asyncHandler(async (req, res) => {
+  await authService.sendOTP(req.body.email);
+  return successResponse(res, 200, "OTP sent successfully");
+});
+
+const verifyOtp = asyncHandler(async (req, res) => {
+  await authService.verifyOTP(req.body.email, req.body.otp);
+  return successResponse(res, 200, "OTP verified successfully");
+});
+
+const changePassword = asyncHandler(async (req, res) => {
+  await authService.changePassword(
+    req.user.id,
+    req.body.oldPassword,
+    req.body.newPassword,
+  );
+  return successResponse(res, 200, "Password changed successfully");
 });
 
 module.exports = {
-    registerUser,
-    loginUser,
-    getCurrentUser,
-    logout,
-    dummyAuthAction
+  register,
+  login,
+  loginOptions,
+  logout,
+  forgotPassword,
+  resetPassword,
+  refreshToken,
+  getMe,
+  checkMeHeaders,
+  sendOtp,
+  verifyOtp,
+  changePassword,
 };

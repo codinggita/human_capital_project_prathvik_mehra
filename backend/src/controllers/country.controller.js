@@ -1,51 +1,65 @@
-const { Country } = require("../models/country.model");
-const { ApiError } = require("../utils/ApiError");
-const { ApiResponse } = require("../utils/apiResponse");
-const { asyncHandler } = require("../middlewares/asyncHandler");
+const asyncHandler = require("../utils/asyncHandler");
+const { successResponse } = require("../utils/responseFormatter");
+const countryService = require("../services/country.service");
+
+const getCountries = asyncHandler(async (req, res) => {
+  const { data, pagination } = await countryService.getAllCountries(req.query);
+  return successResponse(
+    res,
+    200,
+    "Countries fetched successfully",
+    data,
+    pagination,
+  );
+});
 
 const createCountry = asyncHandler(async (req, res) => {
-    const { countryCode, countryName } = req.body;
-
-    if (!countryCode || !countryName) {
-        throw new ApiError(400, "Country code and name are required");
-    }
-
-    // _id IS the countryCode in our schema
-    const existingCountry = await Country.findById(countryCode.toUpperCase());
-    if (existingCountry) {
-        throw new ApiError(409, "Country with this code already exists");
-    }
-
-    const country = await Country.create({ _id: countryCode.toUpperCase(), name: countryName });
-
-    return res.status(201).json(
-        new ApiResponse(201, country, "Country created successfully")
-    );
+  const data = await countryService.createCountry(req.body);
+  return successResponse(res, 201, "Country created successfully", data);
 });
 
-const getAllCountries = asyncHandler(async (req, res) => {
-    const countries = await Country.find({});
-    return res.status(200).json(
-        new ApiResponse(200, countries, "Countries retrieved successfully")
-    );
+const getCountryById = asyncHandler(async (req, res) => {
+  const data = await countryService.getCountryById(req.params.id);
+  return successResponse(res, 200, "Country fetched successfully", data);
 });
 
-const getCountryByCode = asyncHandler(async (req, res) => {
-    const { countryCode } = req.params;
-    // _id IS the countryCode - use findById for efficiency
-    const country = await Country.findById(countryCode.toUpperCase());
+const updateCountry = asyncHandler(async (req, res) => {
+  const data = await countryService.updateCountry(req.params.id, req.body);
+  return successResponse(res, 200, "Country updated successfully", data);
+});
 
-    if (!country) {
-        throw new ApiError(404, "Country not found");
-    }
+const deleteCountry = asyncHandler(async (req, res) => {
+  await countryService.deleteCountry(req.params.id);
+  return successResponse(res, 200, "Country deleted successfully");
+});
 
-    return res.status(200).json(
-        new ApiResponse(200, country, "Country retrieved successfully")
-    );
+const getTopCountries = asyncHandler(async (req, res) => {
+  const { data, pagination } = await countryService.getTopCountries(req.query);
+  return successResponse(
+    res,
+    200,
+    "Top countries fetched successfully",
+    data,
+    pagination,
+  );
+});
+
+const getCountryMetrics = asyncHandler(async (req, res) => {
+  const data = await countryService.getCountryMetrics(req.params.countryCode);
+  return successResponse(
+    res,
+    200,
+    "Country metrics fetched successfully",
+    data,
+  );
 });
 
 module.exports = {
-    createCountry,
-    getAllCountries,
-    getCountryByCode
+  getCountries,
+  createCountry,
+  getCountryById,
+  updateCountry,
+  deleteCountry,
+  getTopCountries,
+  getCountryMetrics,
 };
