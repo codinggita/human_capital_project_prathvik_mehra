@@ -1,32 +1,29 @@
-const getPaginationOptions = (req) => {
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 10;
-    const skip = (page - 1) * limit;
+const { PAGINATION } = require("./constants");
 
-    const sortBy = req.query.sortBy || "createdAt";
-    const sortOrder = req.query.sortOrder === "asc" ? 1 : -1;
-    const sort = { [sortBy]: sortOrder };
+// Calculate skip and limit for MongoDB queries dynamically
+const getPagination = (query) => {
+  const page = Math.max(1, parseInt(query.page, 10) || PAGINATION.DEFAULT_PAGE);
+  const limit = Math.max(
+    1,
+    parseInt(query.limit, 10) || PAGINATION.DEFAULT_LIMIT,
+  );
+  const skip = (page - 1) * limit;
 
-    return { page, limit, skip, sort };
+  return { page, limit, skip };
 };
 
-const getPaginatedPayload = (data, page, limit, totalDocs) => {
-    const totalPages = Math.ceil(totalDocs / limit);
-    
-    return {
-        data,
-        pagination: {
-            totalDocs,
-            limit,
-            page,
-            totalPages,
-            hasNextPage: page < totalPages,
-            hasPrevPage: page > 1,
-        }
-    };
+// Generate pagination metadata perfectly for client frontend consumption
+const getPaginationMeta = (totalDocs, page, limit) => {
+  const totalPages = Math.ceil(totalDocs / limit);
+
+  return {
+    currentPage: page,
+    limit,
+    totalPages,
+    totalRecords: totalDocs,
+    hasNextPage: page < totalPages,
+    hasPrevPage: page > 1,
+  };
 };
 
-module.exports = {
-    getPaginationOptions,
-    getPaginatedPayload
-};
+module.exports = { getPagination, getPaginationMeta };

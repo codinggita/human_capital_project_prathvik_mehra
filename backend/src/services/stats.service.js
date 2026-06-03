@@ -1,121 +1,119 @@
-const { DataPoint } = require("../models/dataPoint.model");
-const { Country } = require("../models/country.model");
-const { Indicator } = require("../models/indicator.model");
+const Price = require("../models/price.model");
 
-class StatsService {
-    /**
-     * Get global average for an indicator across all countries in a specific year.
-     * Since indicator._id IS the indicatorCode string, we use findById directly.
-     */
-    async getGlobalAverage(indicatorCode, year) {
-        // _id is the indicator code - use findById, not findOne({ indicatorCode })
-        const indicator = await Indicator.findById(indicatorCode.toUpperCase());
-        if (!indicator) return null;
+// Aggregate statistics using MongoDB pipelines for maximum performance on 190k records
+const getPriceStatisticsService = async () => {
+  const stats = await Price.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalRecords: { $sum: 1 },
+        averageValue: { $avg: "$value" },
+        maxValue: { $max: "$value" },
+        minValue: { $min: "$value" },
+      },
+    },
+  ]);
+  return stats[0] || {};
+};
 
-        const matchStage = { indicator: indicator._id };
-        if (year) matchStage.year = parseInt(year, 10);
+const getHighestValueService = async () => {
+  // Sort descending by value and pick the first document using lean()
+  return Price.findOne().sort("-value").lean();
+};
 
-        const result = await DataPoint.aggregate([
-            { $match: matchStage },
-            {
-                $group: {
-                    _id: { indicator: "$indicator", year: "$year" },
-                    averageValue: { $avg: "$value" },
-                    minVal: { $min: "$value" },
-                    maxVal: { $max: "$value" },
-                    count: { $sum: 1 }
-                }
-            },
-            { $sort: { "_id.year": -1 } }
-        ]);
+const getLowestValueService = async () => {
+  // Sort ascending, ignoring null values
+  return Price.findOne({ value: { $ne: null } })
+    .sort("value")
+    .lean();
+};
 
-        return result;
-    }
+const getMonthlyAverageService = async () => {
+  return Price.aggregate([
+    { $match: { month: { $ne: null } } },
+    { $group: { _id: "$month", average: { $avg: "$value" } } },
+    { $sort: { _id: 1 } }, // Sort Jan to Dec
+  ]);
+};
 
-    /**
-     * Get top/bottom performing countries for a specific indicator.
-     * country._id IS the countryCode string, so $lookup foreignField '_id' is correct.
-     */
-    async getTopCountries(indicatorCode, year, limit = 10, sortOrder = -1) {
-        const indicator = await Indicator.findById(indicatorCode.toUpperCase());
-        if (!indicator) return null;
+const getYearlyAverageService = async () => {
+  return Price.aggregate([
+    { $group: { _id: "$year", average: { $avg: "$value" } } },
+    { $sort: { _id: -1 } }, // Sort newest to oldest
+  ]);
+};
 
-        const matchStage = { indicator: indicator._id };
-        if (year) matchStage.year = parseInt(year, 10);
+const getTopCountriesService = async () => {
+  return Price.aggregate([
+    { $group: { _id: "$countryName", recordCount: { $sum: 1 } } },
+    { $sort: { recordCount: -1 } },
+    { $limit: 10 },
+  ]);
+};
 
-        const result = await DataPoint.aggregate([
-            { $match: matchStage },
-            { $sort: { value: sortOrder } },
-            { $limit: parseInt(limit, 10) },
-            {
-                $lookup: {
-                    from: "countries",
-                    localField: "country",
-                    foreignField: "_id",
-                    as: "countryDetails"
-                }
-            },
-            { $unwind: "$countryDetails" },
-            {
-                $project: {
-                    _id: 0,
-                    countryCode: "$countryDetails._id",   // _id IS the code
-                    countryName: "$countryDetails.name",  // name IS the country name
-                    value: 1,
-                    year: 1,
-                    month: 1
-                }
-            }
-        ]);
+const getTopIndicatorsService = async () => {
+  return Price.aggregate([
+    { $group: { _id: "$indicatorName", recordCount: { $sum: 1 } } },
+    { $sort: { recordCount: -1 } },
+    { $limit: 10 },
+  ]);
+};
 
-        return result;
-    }
+const getValueDistributionService = async () => {
+  // Ready for advanced $bucket aggregation logic
+  return { message: "Value distribution data" };
+};
 
-    /**
-     * Compare two countries for a specific indicator across a range of years.
-     * Both country and indicator _id fields ARE the string codes.
-     */
-    async compareCountries(countryCode1, countryCode2, indicatorCode) {
-        // findById because _id IS the code
-        const country1 = await Country.findById(countryCode1.toUpperCase());
-        const country2 = await Country.findById(countryCode2.toUpperCase());
-        const indicator = await Indicator.findById(indicatorCode.toUpperCase());
+const getRecordsCountService = async () => {
+  return { total: await Price.estimatedDocumentCount() }; // Faster than countDocuments
+};
 
-        if (!country1 || !country2 || !indicator) return null;
+const getTrendingStatisticsService = async () => {
+  return { trending: true };
+};
 
-        const result = await DataPoint.aggregate([
-            {
-                $match: {
-                    indicator: indicator._id,
-                    country: { $in: [country1._id, country2._id] }
-                }
-            },
-            {
-                $lookup: {
-                    from: "countries",
-                    localField: "country",
-                    foreignField: "_id",
-                    as: "countryDetails"
-                }
-            },
-            { $unwind: "$countryDetails" },
-            {
-                $group: {
-                    _id: "$year",
-                    data: {
-                        $push: {
-                            country: "$countryDetails._id",   // _id IS the code
-                            countryName: "$countryDetails.name",
-                            value: "$value"
-                        }
-                    }
-                }
-            },
-            { $sort: { _id: 1 } }
-        ]);
+const getOverviewStatsService = async () => {
+  const [totalPrices, topCountries] = await Promise.all([
+    Price.estimatedDocumentCount(),
+    getTopCountriesService(),
+  ]);
+  return { totalPrices, topCountries };
+};
 
-        return result;
-    }
-}
+const getCountryStatsService = async (countryCode) => {
+  return Price.aggregate([
+    { $match: { countryCode: String(countryCode).toUpperCase() } },
+    {
+      $group: {
+        _id: "$countryCode",
+        avgValue: { $avg: "$value" },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+};
 
-module.exports = new StatsService();
+const getYearStatsService = async (year) => {
+  return Price.countDocuments({ year: Number(year) });
+};
+
+const getMonthStatsService = async (month) => {
+  return Price.countDocuments({ month: Number(month) });
+};
+
+module.exports = {
+  getPriceStatistics: getPriceStatisticsService,
+  getHighestValue: getHighestValueService,
+  getLowestValue: getLowestValueService,
+  getMonthlyAverage: getMonthlyAverageService,
+  getYearlyAverage: getYearlyAverageService,
+  getTopCountries: getTopCountriesService,
+  getTopIndicators: getTopIndicatorsService,
+  getValueDistribution: getValueDistributionService,
+  getRecordsCount: getRecordsCountService,
+  getTrendingStatistics: getTrendingStatisticsService,
+  getOverviewStats: getOverviewStatsService,
+  getCountryStats: getCountryStatsService,
+  getYearStats: getYearStatsService,
+  getMonthStats: getMonthStatsService,
+};
