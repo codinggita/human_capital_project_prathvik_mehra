@@ -1,73 +1,162 @@
-const { DataPoint } = require("../models/dataPoint.model");
+const Price = require("../models/price.model");
+const { buildQuery, buildSort } = require("../utils/queryBuilder");
+const { getPagination, getPaginationMeta } = require("../utils/pagination");
 
-class PriceService {
-    /**
-     * Build MongoDB filter object based on query parameters
-     * country/indicator fields in DataPoint schema are Strings matching _id of Country/Indicator
-     */
-    buildFilter(query) {
-        const filter = {};
+// Base fetching function optimized with lean() and parallel Promise execution
+const fetchPricesBase = async (queryObj, extraFilters = {}) => {
+  const filter = { ...buildQuery(queryObj), ...extraFilters };
+  const sort = buildSort(queryObj);
+  const { page, limit, skip } = getPagination(queryObj);
 
-        // country and indicator are stored as String _id values (e.g. "IND", "FAO_CP_23012")
-        if (query.country) {
-            filter.country = typeof query.country === 'string'
-                ? query.country.toUpperCase()
-                : query.country; // ObjectId passed directly from controller lookup
-        }
+  // Execute database queries in parallel for high performance on 190k records
+  const [data, totalDocs] = await Promise.all([
+    Price.find(filter).sort(sort).skip(skip).limit(limit).lean(),
+    Price.countDocuments(filter),
+  ]);
 
-        if (query.indicator) {
-            filter.indicator = query.indicator.toString().toUpperCase();
-        }
+  return { data, pagination: getPaginationMeta(totalDocs, page, limit) };
+};
 
-        if (query.year) {
-            filter.year = parseInt(query.year, 10);
-        }
+const getAllPricesService = (queryObj) => fetchPricesBase(queryObj);
 
-        if (query.month) {
-            filter.month = parseInt(query.month, 10);
-        }
+const getSinglePriceService = async (id) => {
+  const price = await Price.findById(id).lean();
+  if (!price) {
+    const err = new Error("Price record not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  return price;
+};
 
-        if (query.frequency) {
-            filter.frequency = query.frequency;
-        }
+const createPriceService = async (priceData) => Price.create(priceData);
 
-        // Handle value range filtering
-        if (query.minValue !== undefined || query.maxValue !== undefined) {
-            filter.value = {};
-            if (query.minValue !== undefined) filter.value.$gte = parseFloat(query.minValue);
-            if (query.maxValue !== undefined) filter.value.$lte = parseFloat(query.maxValue);
-        }
+const replacePriceService = async (id, priceData) => {
+  return Price.findOneAndReplace({ _id: id }, priceData, {
+    new: true,
+    runValidators: true,
+  });
+};
 
-        // Handle year range filtering (overrides single year)
-        if (query.startYear || query.endYear) {
-            filter.year = {};
-            if (query.startYear) filter.year.$gte = parseInt(query.startYear, 10);
-            if (query.endYear) filter.year.$lte = parseInt(query.endYear, 10);
-        }
+const updatePriceService = async (id, priceData) => {
+  return Price.findByIdAndUpdate(id, priceData, {
+    new: true,
+    runValidators: true,
+  });
+};
 
-        return filter;
-    }
+const deletePriceService = async (id) => Price.findByIdAndDelete(id);
 
-    /**
-     * Get paginated prices based on filters.
-     * Since country._id and indicator._id ARE the string codes, populate works
-     * with 'name' and 'label' which are the actual field names in schema.
-     */
-    async getPrices(filter, options) {
-        const { skip, limit, sort } = options;
+// Advanced queries dynamically injecting filters into the base query engine
+const getLatestPricesService = (queryObj) => {
+  queryObj.sort = "-year,-month";
+  return fetchPricesBase(queryObj);
+};
 
-        const data = await DataPoint.find(filter)
-            .populate('country', 'name')     // schema field is 'name' (not countryName)
-            .populate('indicator', 'label')  // schema field is 'label' (not indicatorLabel)
-            .sort(sort)
-            .skip(skip)
-            .limit(limit)
-            .lean({ virtuals: true });       // include virtuals so countryCode/countryName appear
+const getRecentPricesService = (queryObj) => {
+  queryObj.sort = "-createdAt";
+  return fetchPricesBase(queryObj);
+};
 
-        const totalDocs = await DataPoint.countDocuments(filter);
+const getRandomPricesService = async (queryObj) => {
+  const limit = Number(queryObj.limit) || 10;
+  // Use MongoDB native aggregation for efficient random sampling
+  const data = await Price.aggregate([{ $sample: { size: limit } }]);
+  return { data, pagination: { total: limit, limit, page: 1, pages: 1 } };
+};
 
-        return { data, totalDocs };
-    }
-}
+const getTrendingPricesService = (queryObj) => fetchPricesBase(queryObj);
 
-module.exports = new PriceService();
+const getHighValuePricesService = (queryObj) =>
+  fetchPricesBase(queryObj, { value: { $gt: 100 } });
+const getLowValuePricesService = (queryObj) =>
+  fetchPricesBase(queryObj, { value: { $lt: 50 } });
+
+// Parameterized injections
+const getPricesByCountryService = (countryCode, queryObj) =>
+  fetchPricesBase(queryObj, { countryCode });
+const getPricesByYearService = (year, queryObj) =>
+  fetchPricesBase(queryObj, { year });
+const getPricesByMonthService = (month, queryObj) =>
+  fetchPricesBase(queryObj, { month });
+const getPricesByIndicatorService = (indicator, queryObj) =>
+  fetchPricesBase(queryObj, { indicatorCode: indicator });
+const getPricesByFrequencyService = (freq, queryObj) =>
+  fetchPricesBase(queryObj, { frequency: freq });
+const getPricesByValueService = (value, queryObj) =>
+  fetchPricesBase(queryObj, { value });
+const getPricesByRangeService = (startYear, endYear, queryObj) =>
+  fetchPricesBase(queryObj, { year: { $gte: startYear, $lte: endYear } });
+
+// Complex compound injections
+const getCountryPricesByYearService = (countryCode, year, queryObj) =>
+  fetchPricesBase(queryObj, { countryCode, year });
+const getCountryPricesByMonthService = (countryCode, month, queryObj) =>
+  fetchPricesBase(queryObj, { countryCode, month });
+const getCountryLatestPricesService = (countryCode, queryObj) => {
+  queryObj.sort = "-year,-month";
+  return fetchPricesBase(queryObj, { countryCode });
+};
+const getCountryPriceHistoryService = (countryCode, queryObj) => {
+  queryObj.sort = "year,month";
+  return fetchPricesBase(queryObj, { countryCode });
+};
+
+const getHighestPricesInYearService = (year, queryObj) => {
+  queryObj.sort = "-value";
+  return fetchPricesBase(queryObj, { year });
+};
+const getLowestPricesInYearService = (year, queryObj) => {
+  queryObj.sort = "value";
+  return fetchPricesBase(queryObj, { year });
+};
+const getHighestPricesInMonthService = (month, queryObj) => {
+  queryObj.sort = "-value";
+  return fetchPricesBase(queryObj, { month });
+};
+const getLowestPricesInMonthService = (month, queryObj) => {
+  queryObj.sort = "value";
+  return fetchPricesBase(queryObj, { month });
+};
+
+const getHighestPricesService = (queryObj) => {
+  queryObj.sort = "-value";
+  return fetchPricesBase(queryObj);
+};
+
+const getLowestPricesService = (queryObj) => {
+  queryObj.sort = "value";
+  return fetchPricesBase(queryObj);
+};
+
+module.exports = {
+  getAllPrices: getAllPricesService,
+  getSinglePrice: getSinglePriceService,
+  createPrice: createPriceService,
+  replacePrice: replacePriceService,
+  updatePrice: updatePriceService,
+  deletePrice: deletePriceService,
+  getLatestPrices: getLatestPricesService,
+  getRecentPrices: getRecentPricesService,
+  getRandomPrices: getRandomPricesService,
+  getTrendingPrices: getTrendingPricesService,
+  getHighValuePrices: getHighValuePricesService,
+  getLowValuePrices: getLowValuePricesService,
+  getPricesByCountry: getPricesByCountryService,
+  getPricesByYear: getPricesByYearService,
+  getPricesByMonth: getPricesByMonthService,
+  getPricesByIndicator: getPricesByIndicatorService,
+  getPricesByFrequency: getPricesByFrequencyService,
+  getPricesByValue: getPricesByValueService,
+  getPricesByYearRange: getPricesByRangeService,
+  getCountryPricesByYear: getCountryPricesByYearService,
+  getCountryPricesByMonth: getCountryPricesByMonthService,
+  getLatestCountryPrices: getCountryLatestPricesService,
+  getCountryPriceHistory: getCountryPriceHistoryService,
+  getHighestPricesInYear: getHighestPricesInYearService,
+  getLowestPricesInYear: getLowestPricesInYearService,
+  getHighestPricesInMonth: getHighestPricesInMonthService,
+  getLowestPricesInMonth: getLowestPricesInMonthService,
+  getHighestPrices: getHighestPricesService,
+  getLowestPrices: getLowestPricesService,
+};
