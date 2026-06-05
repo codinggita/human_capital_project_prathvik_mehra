@@ -8,6 +8,10 @@
 [![Express.js](https://img.shields.io/badge/express.js-%23404d59.svg?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
 [![NodeJS](https://img.shields.io/badge/node.js-6DA55F?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 
+**[📘 View Postman API Documentation](https://documenter.getpostman.com/view/50841552/2sBXwpNrg8)**
+<br />
+**[🟢 Live API Base URL (Render)](https://human-capital-project-prathvik-mehra-1.onrender.com)**
+<br /><br />
 [Report Bug](https://github.com/Prathvikmehra/human_capital_project_prathvik_mehra/issues) · [Request Feature](https://github.com/Prathvikmehra/human_capital_project_prathvik_mehra/issues)
 
 </div>
