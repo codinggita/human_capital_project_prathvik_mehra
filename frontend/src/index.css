@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #10b981;
+  --color-primary-dark: #059669;
+  --color-background-dark: #0f172a;
+  --color-background-card: #1e293b;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-50;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
