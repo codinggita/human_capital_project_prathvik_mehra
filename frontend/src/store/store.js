@@ -1,13 +1,14 @@
 import { configureStore } from '@reduxjs/toolkit';
-import authReducer from './slices/authSlice';
-import uiReducer from './slices/uiSlice';
+import authReducer from '../features/authSlice';
+import uiReducer from '../features/uiSlice';
+import userReducer from '../features/userSlice';
+import dataReducer from '../features/dataSlice';
 
-const store = configureStore({
+export const store = configureStore({
   reducer: {
     auth: authReducer,
     ui: uiReducer,
+    user: userReducer,
+    data: dataReducer,
   },
-  devTools: process.env.NODE_ENV !== 'production',
 });
-
-export default store;
