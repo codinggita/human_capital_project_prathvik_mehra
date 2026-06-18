@@ -7,7 +7,7 @@ const registerUserService = async (userData) => {
   const userExists = await User.findOne({ email });
   if (userExists) {
     const error = new Error("Email is already registered");
-    error.code = 11000;
+    error.statusCode = 400;
     throw error;
   }
 

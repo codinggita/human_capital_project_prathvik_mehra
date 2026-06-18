@@ -21,6 +21,7 @@ const indicatorRoutes = require("./routes/indicator.routes");
 const searchRoutes = require("./routes/search.routes");
 const statsRoutes = require("./routes/stats.routes");
 const adminRoutes = require("./routes/admin.routes");
+const userRoutes = require("./routes/user.routes");
 const jwtRoutes = require("./routes/jwt.routes");
 const compareRoutes = require("./routes/compare.routes");
 const healthRoutes = require("./routes/health.routes");
@@ -43,14 +44,25 @@ app.use(helmet());
 // Enable Cross-Origin Resource Sharing for frontend
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (
+        origin.includes("localhost") ||
+        origin.includes("127.0.0.1") ||
+        origin === process.env.CLIENT_URL
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
-  }),
+  })
 );
 
 // Body parsers: read data from req.body (with strict size limits)
-app.use(express.json({ limit: "10kb" }));
-app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+app.use(express.json({ limit: "5mb" }));
+app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 app.use(cookieParser());
 
 // Data sanitization handled by custom sanitizeQuery middleware below
@@ -99,6 +111,7 @@ app.use(`${API_PREFIX}/indicators`, indicatorRoutes);
 app.use(`${API_PREFIX}/search`, searchRoutes);
 app.use(`${API_PREFIX}/stats`, statsRoutes);
 app.use(`${API_PREFIX}/admin`, adminRoutes);
+app.use(`${API_PREFIX}/users`, userRoutes);
 app.use(`${API_PREFIX}/jwt`, jwtRoutes);
 app.use(`${API_PREFIX}/compare`, compareRoutes);
 app.use(`${API_PREFIX}/health`, healthRoutes);
