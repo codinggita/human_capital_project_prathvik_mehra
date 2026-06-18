@@ -1,13 +1,17 @@
 <div align="center">
 
-# 📊 Human Capital Analytics | Full Backend Architecture
+# 📊 Human Capital Analytics | Full Stack Architecture
 
 **Enterprise-Level Dashboard & Predictive Analytics System for Global Economic Intelligence**
 
+[![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Express.js](https://img.shields.io/badge/express.js-%23404d59.svg?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
 [![NodeJS](https://img.shields.io/badge/node.js-6DA55F?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 
+**[🟢 Live Enterprise Dashboard (Vercel)](https://human-capital-project-prathvik-mehr.vercel.app)**
+<br />
 **[📘 View Postman API Documentation](https://documenter.getpostman.com/view/50841552/2sBXwpNrg8)**
 <br />
 **[🟢 Live API Base URL (Render)](https://human-capital-project-prathvik-mehra-1.onrender.com)**
@@ -22,44 +26,51 @@
 
 > _"Empowering global stakeholders with precision-engineered data visualizations and scalable intelligence architectures to decode the complexities of human capital and economic shifts."_
 
-In an era of data-driven decision-making, the **Human Capital Analytics Platform** serves as a high-fidelity lens into the global economy. By processing vast amounts of real-world records into our custom `economic_analytics` database, this system provides analysts and enterprises with the tools to visualize inflation trends, consumer price indices, and demographic shifts through a seamless, interactive, and ultra-responsive backend architecture.
+In an era of data-driven decision-making, the **Human Capital Analytics Platform** serves as a high-fidelity lens into the global economy. By processing vast amounts of real-world records into our custom `economic_analytics` database, this system provides analysts and enterprises with the tools to visualize inflation trends, consumer price indices, and demographic shifts through a seamless, interactive, and ultra-responsive full-stack architecture.
 
 ---
 
 ## 📖 Introduction
 
-This project is an enterprise-grade backend solution built with **Node.js** and **Express.js**. It is architected for speed, security, and massive data handling.
+This project is an enterprise-grade **Full Stack Web Application** separated into a highly decoupled **Vite + React Frontend** and an **Express.js + Node.js Backend**.
 
-Unlike standard backends, this system utilizes complex **MongoDB Aggregation Pipelines** and a strict **Controller-Service Architecture** to deliver real-time analytical insights. With built-in Role-Based Access Control (RBAC), robust Zod validation, and a strictly decoupled MVC design, it represents the pinnacle of modern backend engineering.
+The Frontend utilizes **Redux Toolkit** for complex state management, **Framer Motion** for fluid UI transitions, and **Recharts** for massive real-time telemetry dashboards. 
+The Backend utilizes complex **MongoDB Aggregation Pipelines**, a strict **Controller-Service Architecture**, Role-Based Access Control (RBAC), and robust Zod validation. 
 
 ---
 
 ## 🛠️ Tech Stack Architecture
 
+### 💻 Frontend (Client-Side)
+| Technology             | Category            | Purpose                                                 |
+| :--------------------- | :------------------ | :------------------------------------------------------ |
+| **React + Vite**       | Core UI Framework   | High-speed rendering and instantaneous Hot Module Reload |
+| **Redux Toolkit**      | State Management    | Centralized global state for Auth, Dashboard, and UI    |
+| **Material-UI (MUI)**  | UI Component Library| Accessible, premium pre-built components                |
+| **Recharts / Leaflet** | Data Visualization  | Complex telemetry graphing and interactive world maps   |
+| **Framer Motion**      | Animations          | Physics-based micro-interactions and route transitions  |
+
 ### ⚙️ Backend (Server-Side)
 
 | Technology             | Category            | Purpose                                                 |
 | :--------------------- | :------------------ | :------------------------------------------------------ |
-| **Node.js**            | Runtime Environment | Scalable, event-driven JavaScript execution             |
-| **Express.js (v5.x)**  | Web Framework       | Minimalist and flexible routing and middleware engine   |
+| **Node.js + Express**  | Web Server          | Scalable, event-driven JavaScript execution             |
 | **MongoDB (Atlas)**    | Database            | Cloud NoSQL document storage (`economic_analytics`)     |
 | **Mongoose**           | ODM                 | Strict schema modeling and high-speed lean querying     |
 | **JWT & Bcrypt**       | Security            | Secure stateless authentication and password encryption |
 | **Zod**                | Validation          | Strict TypeScript-first schema validation               |
-| **Winston**            | Logging             | Production-level request tracking and error logging     |
-| **Helmet & HPP**       | Protection          | Cross-origin security and HTTP header hardening         |
+| **Winston & Helmet**   | Security & Logging  | Production-level request tracking and HTTP hardening    |
 
 ---
 
 ## ✨ System Features
 
-### 🛡️ Backend Power
-
-- **📊 15 Modular Routes**: Highly focused routing categories preventing code bloat.
+- **📱 Fully Responsive UI**: Flawless experience from 4K desktop monitors down to mobile devices.
+- **🎨 Premium Dark/Light Modes**: Integrated theme switching across all interactive charts and UI elements.
+- **🛡️ Secure JWT Authentication**: Robust cookie and local-storage token handling with route guards.
+- **📊 Advanced Telemetry Dashboards**: Render up to 15 different data visualization widgets simultaneously.
 - **⚙️ Service Layer Architecture**: 100% decoupling of database logic from HTTP controllers.
-- **🔍 Dynamic Querying**: Complex filtering, multi-field sorting, and text-search logic natively built in.
 - **🛑 Intelligent Rate Limiting**: Protection against API abuse and brute-force attempts.
-- **🩺 Global Error Handling**: Centralized interception of Mongoose/JWT errors preventing server crashes.
 
 ---
 
@@ -67,7 +78,7 @@ Unlike standard backends, this system utilizes complex **MongoDB Aggregation Pip
 
 ```mermaid
 graph TD
-    A[Client Request] -->|HTTPS| B[Express Router]
+    A[React Frontend] -->|HTTPS API Requests| B[Express Router]
     B -->|Middleware| C{Security & Zod Validation}
     C -->|JWT/RBAC| D[Controller]
     D -->|Delegates Logic| E[Service Layer]
@@ -79,82 +90,43 @@ graph TD
 
 ---
 
-## 📁 Project Structure
-
-```text
-backend/
-├── src/
-│   ├── config/           # DB, CORS, and Cloudinary settings
-│   ├── controllers/      # Route handler implementations
-│   ├── middlewares/      # Error, Auth, Rate-Limit, and Log middlewares
-│   ├── models/           # Mongoose schemas with indexing
-│   ├── routes/           # Versioned API route definitions (15 modular files)
-│   ├── services/         # Core business and database logic
-│   ├── utils/            # Query builders, formatters, async handlers
-│   ├── validators/       # Input validation schemas (Zod)
-│   ├── app.js            # Express instance configuration
-│   └── server.js         # HTTP Server Launcher
-```
-
----
-
 ## ⚙️ Installation & Setup
 
 ### 1. Repository Setup
 
 ```bash
 git clone https://github.com/Prathvikmehra/human_capital_project_prathvik_mehra.git
-cd human_capital_project_prathvik_mehra/backend
+cd human_capital_project_prathvik_mehra
 ```
 
-### 2. Backend Configuration
+### 2. Global Installation
 
+This repository is a monorepo configured for seamless full-stack execution.
 ```bash
 npm install
-cp .env.example .env
+```
+*(This automatically installs dependencies for both `frontend` and `backend` using the custom root `package.json` hooks).*
+
+### 3. Backend Configuration
+Create a `.env` file in the `/backend` folder:
+```env
+PORT=5000
+MONGODB_URI=mongodb+srv://your_connection_string
+JWT_SECRET=your_super_secret_key
+CLIENT_URL=http://localhost:3000
 ```
 
-Ensure you configure your `.env` with your Atlas MongoDB connection string pointing to `economic_analytics` and your generated `JWT_SECRET`.
-
-### 3. Run the Server
+### 4. Run Both Servers
+Open two terminal instances:
 ```bash
+# Terminal 1 (Backend)
+cd backend
+npm run dev
+
+# Terminal 2 (Frontend)
+cd frontend
 npm run dev
 ```
-
----
-
-## 🔑 Environment Variables
-
-| Variable             | Description       | Example                 |
-| :------------------- | :---------------- | :---------------------- |
-| `NODE_ENV`           | Environment State | `development`           |
-| `LOCAL_MONGODB_URI`  | Connection String | `mongodb+srv://...`     |
-| `JWT_SECRET`         | Auth Token Secret | `your_long_secure_hash` |
-| `PORT`               | Server Port       | `5000`                  |
-
----
-
-## 📡 Core API Routes
-
-Our backend is broken down into 15 highly modular route structures mounted at `/api/v1/`:
-
-- **`/auth`**: Registration, login, token refreshing, and OTPs.
-- **`/prices`**: Fetch and filter global price metrics.
-- **`/countries`**: Macro-economic stats and historical trends by nation.
-- **`/indicators`**: Manage and retrieve specific economic indicators.
-- **`/stats`**: Pre-calculated aggregations (averages, distributions).
-- **`/search`**: High-velocity text search engines.
-- **`/admin`**: Highly protected dashboard routes.
-...and 8 more specialized routes!
-
----
-
-## ⚡ Performance Optimization
-
-- **DB Indexing**: Utilizing B-tree indexes for `O(log n)` lookup performance.
-- **Lean Queries**: Using `.lean()` to bypass Mongoose document hydration.
-- **Parallel Execution**: Utilizing `Promise.all()` for simultaneous count and fetch operations.
-- **Compression**: Shrinking JSON payloads before they leave the Node server.
 
 ---
 
@@ -170,6 +142,6 @@ Our backend is broken down into 15 highly modular route structures mounted at `/
 
 ### 🚀 Deciphering the world's data, one record at a time.
 
-[Back to Top](#-human-capital-analytics--full-backend-architecture)
+[Back to Top](#-human-capital-analytics--full-stack-architecture)
 
 </div>
