@@ -17,8 +17,31 @@ const {
 } = require("../validators/auth.validator");
 
 // Rate limiters to prevent brute force and spam
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5 });
-const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 3 });
+const isDev = process.env.NODE_ENV === "development";
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50,                  // 50 attempts (was 5 — too aggressive for dev/testing)
+  skip: () => isDev,        // Skip entirely in development
+  message: {
+    success: false,
+    message: "Too many login attempts. Please wait 15 minutes before trying again.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20,                  // 20 registrations per hour (was 3)
+  skip: () => isDev,        // Skip entirely in development
+  message: {
+    success: false,
+    message: "Too many registration attempts. Please wait an hour before trying again.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // ==========================================
 // 🔓 PUBLIC ROUTES
@@ -26,6 +49,7 @@ const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 3 });
 
 router.post(
   "/register",
+  registerLimiter,
   validateRequest(validateRegister),
   authController.register,
 );
