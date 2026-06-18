@@ -36,9 +36,15 @@ const adminDeletePriceService = async (id) => Price.findByIdAndDelete(id);
 
 const getAllPricesService = async (queryObj) => {
   const { page, limit, skip } = getPagination(queryObj);
+  const filter = {};
+  if (queryObj.country) {
+    // case-insensitive exact or partial match
+    filter.countryCode = { $regex: new RegExp(`^${queryObj.country}$`, 'i') }; 
+  }
+
   const [data, totalDocs] = await Promise.all([
-    Price.find().skip(skip).limit(limit).lean(),
-    Price.countDocuments(),
+    Price.find(filter).skip(skip).limit(limit).lean(),
+    Object.keys(filter).length === 0 ? Price.estimatedDocumentCount() : Price.countDocuments(filter),
   ]);
   return { data, pagination: getPaginationMeta(totalDocs, page, limit) };
 };
