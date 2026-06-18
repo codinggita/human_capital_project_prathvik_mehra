@@ -60,8 +60,30 @@ const getTopIndicatorsService = async () => {
 };
 
 const getValueDistributionService = async () => {
-  // Ready for advanced $bucket aggregation logic
-  return { message: "Value distribution data" };
+  return Price.aggregate([
+    {
+      $bucketAuto: {
+        groupBy: "$value",
+        buckets: 6,
+        output: { count: { $sum: 1 } }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        range: { $concat: [{ $toString: { $round: ["$_id.min", 1] } }, " - ", { $toString: { $round: ["$_id.max", 1] } }] },
+        count: 1
+      }
+    }
+  ]);
+};
+
+const getFrequencyDistributionService = async () => {
+  return Price.aggregate([
+    { $group: { _id: "$frequency", value: { $sum: 1 } } },
+    { $project: { _id: 0, name: "$_id", value: 1 } },
+    { $sort: { value: -1 } }
+  ]);
 };
 
 const getRecordsCountService = async () => {
@@ -110,6 +132,7 @@ module.exports = {
   getTopCountries: getTopCountriesService,
   getTopIndicators: getTopIndicatorsService,
   getValueDistribution: getValueDistributionService,
+  getFrequencyDistribution: getFrequencyDistributionService,
   getRecordsCount: getRecordsCountService,
   getTrendingStatistics: getTrendingStatisticsService,
   getOverviewStats: getOverviewStatsService,
