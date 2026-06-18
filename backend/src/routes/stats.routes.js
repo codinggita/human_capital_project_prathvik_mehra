@@ -12,6 +12,7 @@ router.get("/yearly-average", statsController.getYearlyAverage);
 router.get("/top-countries", statsController.getTopCountries);
 router.get("/top-indicators", statsController.getTopIndicators);
 router.get("/value-distribution", statsController.getValueDistribution);
+router.get("/frequency-distribution", statsController.getFrequencyDistribution);
 router.get("/records-count", statsController.getRecordsCount);
 router.get("/trending", statsController.getTrendingStats);
 

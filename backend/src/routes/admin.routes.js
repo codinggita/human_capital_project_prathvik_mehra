@@ -7,7 +7,7 @@ const { verifyJWT } = require("../middlewares/auth.middleware");
 const { authorizeRoles } = require("../middlewares/role.middleware");
 
 // Strict admin rate limiting
-const adminLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 50 });
+const adminLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500 });
 
 // Protect and strictly authorize all admin routes using smart verification
 router.use(verifyJWT);

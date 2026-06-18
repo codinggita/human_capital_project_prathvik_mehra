@@ -70,6 +70,16 @@ const getValueDistribution = asyncHandler(async (req, res) => {
   );
 });
 
+const getFrequencyDistribution = asyncHandler(async (req, res) => {
+  const data = await statsService.getFrequencyDistribution();
+  return successResponse(
+    res,
+    200,
+    "Frequency distribution fetched successfully",
+    data,
+  );
+});
+
 const getRecordsCount = asyncHandler(async (req, res) => {
   const data = await statsService.getRecordsCount();
   return successResponse(res, 200, "Records count fetched successfully", data);
@@ -126,6 +136,7 @@ module.exports = {
   getTopCountries,
   getTopIndicators,
   getValueDistribution,
+  getFrequencyDistribution,
   getRecordsCount,
   getTrendingStats,
   getCountryStats,
